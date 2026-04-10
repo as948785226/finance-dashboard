@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>尬酒馆 - 财务看板</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #fff;
+    }
+    
+    .header {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .header .subtitle {
+      font-size: 14px;
+      color: rgba(255,255,255,0.6);
+    }
+    
+    .balance-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 16px;
+      padding: 25px;
+      margin: 20px;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    
+    .balance-label {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 5px;
+    }
+    
+    .balance-amount {
+      font-size: 42px;
+      font-weight: bold;
+    }
+    
+    .balance-amount.positive { color: #4ade80; }
+    .balance-amount.negative { color: #f87171; }
+    
+    .stats-row {
+      display: flex;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .stat-box {
+      flex: 1;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 15px;
+      text-align: center;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-bottom: 5px;
+    }
+    
+    .stat-value {
+      font-size: 20px;
+      font-weight: bold;
+    }
+    
+    .stat-value.income { color: #4ade80; }
+    .stat-value.expense { color: #f87171; }
+    
+    .month-tabs {
+      display: flex;
+      gap: 10px;
+      padding: 15px 20px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .month-tab {
+      padding: 10px 20px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 20px;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.3s;
+    }
+    
+    .month-tab.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .records-list {
+      padding: 0 20px 20px;
+    }
+    
+    .record-item {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .record-left {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    
+    .record-desc {
+      font-size: 15px;
+    }
+    
+    .record-date {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+    }
+    
+    .record-right {
+      text-align: right;
+    }
+    
+    .record-amount {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    
+    .record-amount.income { color: #4ade80; }
+    .record-amount.expense { color: #f87171; }
+    
+    .record-balance {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 50px;
+      color: rgba(255,255,255,0.6);
+    }
+    
+    .error {
+      text-align: center;
+      padding: 50px;
+      color: #f87171;
+    }
+    
+    .empty {
+      text-align: center;
+      padding: 50px;
+      color: rgba(255,255,255,0.4);
+    }
+    
+    .refresh-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+      transition: transform 0.3s;
+    }
+    
+    .refresh-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .refresh-btn.loading {
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    .month-summary {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 15px;
+      margin: 0 20px 15px;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .summary-item {
+      text-align: center;
+    }
+    
+    .summary-label {
+      font-size: 12px;
+      color: rgba(255,255,255,0.6);
+    }
+    
+    .summary-value {
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 30px;
+      color: rgba(255,255,255,0.4);
+      font-size: 12px;
+    }
+    
+    @media (max-width: 480px) {
+      .balance-amount { font-size: 36px; }
+      .balance-card { margin: 15px; padding: 20px; }
+      .records-list { padding: 0 15px 15px; }
+      .month-summary { margin: 0 15px 15px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🍺 尬酒馆财务看板</h1>
+    <div class="subtitle">实时收支动态</div>
+  </div>
+  
+  <div class="balance-card">
+    <div class="balance-label">当前账户余额</div>
+    <div class="balance-amount" id="currentBalance">加载中...</div>
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-label">本月收入</div>
+        <div class="stat-value income" id="monthIncome">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">本月支出</div>
+        <div class="stat-value expense" id="monthExpense">-</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">本月笔数</div>
+        <div class="stat-value" id="monthCount">-</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="month-tabs" id="monthTabs">
+    <div class="month-tab active" data-month="4月收支">4月</div>
+    <div class="month-tab" data-month="3月收支">3月</div>
+    <div class="month-tab" data-month="2月收支">2月</div>
+    <div class="month-tab" data-month="1月收支">1月</div>
+    <div class="month-tab" data-month="12月收支">12月</div>
+    <div class="month-tab" data-month="11月收支">11月</div>
+  </div>
+  
+  <div class="month-summary" id="monthSummary" style="display: none;">
+    <div class="summary-item">
+      <div class="summary-label">收入</div>
+      <div class="summary-value income" id="summaryIncome">-</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">支出</div>
+      <div class="summary-value expense" id="summaryExpense">-</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">净额</div>
+      <div class="summary-value" id="summaryNet">-</div>
+    </div>
+  </div>
+  
+  <div class="records-list" id="recordsList">
+    <div class="loading">正在加载数据...</div>
+  </div>
+  
+  <div class="footer">
+    数据来源：飞书多维表格 | 更新时间：<span id="lastUpdate">-</span>
+  </div>
+  
+  <button class="refresh-btn" id="refreshBtn" onclick="loadData()">↻</button>
+  
+  <script>
+    let allData = {};
+    let currentMonth = '4月收支';
+    
+    // 模拟数据（当API不可用时显示）
+    const mockData = {
+      '4月收支': [
+        { fields: { '类型': '收入', '金额': 7500, '备注': '提现收入', '账户余额': 3908.72 }},
+        { fields: { '类型': '支出', '金额': 355, '备注': '青岛啤酒1903三件', '账户余额': 3553.72 }},
+        { fields: { '类型': '支出', '金额': 585, '备注': '青岛啤酒1903五件', '账户余额': 2968.72 }},
+        { fields: { '类型': '收入', '金额': 436, '备注': '现金收入', '账户余额': 3404.72 }},
+        { fields: { '类型': '支出', '金额': 150, '备注': '广告牌拆除费', '账户余额': 3254.72 }},
+        { fields: { '类型': '支出', '金额': 4000, '备注': '启楠还款', '账户余额': -745.28 }},
+        { fields: { '类型': '收入', '金额': 755.88, '备注': '瓶盖收入', '账户余额': 10.60 }},
+        { fields: { '类型': '支出', '金额': 3650, '备注': '3月份酒水', '账户余额': -3639.40 }},
+      ]
+    };
+    
+    async function loadData() {
+      const btn = document.getElementById('refreshBtn');
+      btn.classList.add('loading');
+      
+      try {
+        const response = await fetch('/api/records');
+        if (response.ok) {
+          allData = await response.json();
+        } else {
+          // 使用模拟数据
+          allData = mockData;
+        }
+      } catch (error) {
+        console.log('API不可用，使用本地数据');
+        allData = mockData;
+      }
+      
+      renderRecords();
+      updateStats();
+      
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleString('zh-CN');
+      btn.classList.remove('loading');
+    }
+    
+    function renderRecords() {
+      const container = document.getElementById('recordsList');
+      const records = allData[currentMonth] || [];
+      
+      if (records.length === 0) {
+        container.innerHTML = '<div class="empty">暂无记录</div>';
+        document.getElementById('monthSummary').style.display = 'none';
+        return;
+      }
+      
+      // 计算月份汇总
+      let totalIncome = 0;
+      let totalExpense = 0;
+      
+      records.forEach(r => {
+        if (r.fields['类型'] === '收入') {
+          totalIncome += Number(r.fields['金额'] || 0);
+        } else {
+          totalExpense += Number(r.fields['金额'] || 0);
+        }
+      });
+      
+      document.getElementById('summaryIncome').textContent = '¥' + totalIncome.toFixed(2);
+      document.getElementById('summaryExpense').textContent = '¥' + totalExpense.toFixed(2);
+      
+      const net = totalIncome - totalExpense;
+      const netEl = document.getElementById('summaryNet');
+      netEl.textContent = (net >= 0 ? '+' : '') + '¥' + net.toFixed(2);
+      netEl.style.color = net >= 0 ? '#4ade80' : '#f87171';
+      
+      document.getElementById('monthSummary').style.display = 'flex';
+      
+      // 按日期分组显示（最近的在前）
+      const html = records.reverse().map(r => {
+        const type = r.fields['类型'] || '支出';
+        const amount = Number(r.fields['金额'] || 0);
+        const desc = r.fields['备注'] || '';
+        const balance = Number(r.fields['账户余额'] || 0);
+        
+        return `
+          <div class="record-item">
+            <div class="record-left">
+              <div class="record-desc">${desc}</div>
+              <div class="record-date">${currentMonth}</div>
+            </div>
+            <div class="record-right">
+              <div class="record-amount ${type === '收入' ? 'income' : 'expense'}">
+                ${type === '收入' ? '+' : '-'}¥${amount.toFixed(2)}
+              </div>
+              <div class="record-balance">余额 ¥${balance.toFixed(2)}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      container.innerHTML = html;
+    }
+    
+    function updateStats() {
+      const records = allData[currentMonth] || [];
+      
+      let totalIncome = 0;
+      let totalExpense = 0;
+      
+      records.forEach(r => {
+        if (r.fields['类型'] === '收入') {
+          totalIncome += Number(r.fields['金额'] || 0);
+        } else {
+          totalExpense += Number(r.fields['金额'] || 0);
+        }
+      });
+      
+      document.getElementById('monthIncome').textContent = '¥' + totalIncome.toFixed(2);
+      document.getElementById('monthExpense').textContent = '¥' + totalExpense.toFixed(2);
+      document.getElementById('monthCount').textContent = records.length + '笔';
+      
+      // 计算当前余额（最后一条记录的余额）
+      if (records.length > 0) {
+        const lastBalance = Number(records[records.length - 1].fields['账户余额'] || 0);
+        const balanceEl = document.getElementById('currentBalance');
+        balanceEl.textContent = '¥' + lastBalance.toFixed(2);
+        balanceEl.className = 'balance-amount ' + (lastBalance >= 0 ? 'positive' : 'negative');
+      }
+    }
+    
+    // Tab切换
+    document.getElementById('monthTabs').addEventListener('click', (e) => {
+      if (e.target.classList.contains('month-tab')) {
+        document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
+        e.target.classList.add('active');
+        currentMonth = e.target.dataset.month;
+        renderRecords();
+        updateStats();
+      }
+    });
+    
+    // 初始加载
+    loadData();
+    
+    // 每5分钟自动刷新
+    setInterval(loadData, 5 * 60 * 1000);
+  </script>
+</body>
+</html>
