@@ -1,0 +1,12 @@
+{
+  "name": "finance-dashboard",
+  "version": "1.0.0",
+  "description": "尬酒馆财务看板",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
